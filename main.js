@@ -57,6 +57,18 @@ const parseJsonResponse = async (response) => {
   }
 };
 
+const normalizeDomain = (value) => {
+  if (!value) return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  try {
+    const url = new URL(trimmed);
+    return url.hostname;
+  } catch {
+    return trimmed.replace(/\/+$/, '');
+  }
+};
+
 const fetchPnuFromRoadAddress = async ({ query, key, domain }) => {
   const params = buildSearchParams({
     service: 'search',
@@ -131,7 +143,7 @@ form.addEventListener('submit', async (event) => {
 
   const apiKey = apiKeyInput.value.trim();
   const roadAddress = roadInput.value.trim();
-  const domain = domainInput.value.trim();
+  const domain = normalizeDomain(domainInput.value) || window.location.hostname;
 
   if (!apiKey || !roadAddress) {
     setStatus('API 키와 도로명 주소를 입력해 주세요.', true);
