@@ -45,6 +45,16 @@ const buildSearchParams = (params) => {
   return searchParams.toString();
 };
 
+const parseJsonResponse = async (response) => {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new Error('JSON이 아닌 응답을 받았습니다. 배포된 Worker가 적용되었는지 확인해 주세요.');
+  }
+};
+
 const fetchPnuFromRoadAddress = async ({ query, key }) => {
   const params = buildSearchParams({
     service: 'search',
@@ -61,10 +71,11 @@ const fetchPnuFromRoadAddress = async ({ query, key }) => {
   });
 
   const response = await fetch(`${SEARCH_ENDPOINT}?${params}`);
-  const data = await response.json();
+  const data = await parseJsonResponse(response);
 
   if (!response.ok || data?.response?.status !== 'OK') {
-    throw new Error('주소 검색 API 응답이 올바르지 않습니다.');
+    const message = data?.error ?? '주소 검색 API 응답이 올바르지 않습니다.';
+    throw new Error(message);
   }
 
   const items = data.response?.result?.items ?? [];
@@ -91,10 +102,11 @@ const fetchLandInfo = async ({ pnu, key, domain }) => {
   });
 
   const response = await fetch(`${LADFRL_ENDPOINT}?${params}`);
-  const data = await response.json();
+  const data = await parseJsonResponse(response);
 
   if (!response.ok) {
-    throw new Error('토지임야 API 응답이 올바르지 않습니다.');
+    const message = data?.error ?? '토지임야 API 응답이 올바르지 않습니다.';
+    throw new Error(message);
   }
 
   const record = data?.ladfrlList?.[0] ?? data?.response?.body?.items?.item ?? data?.items?.[0];

@@ -1,5 +1,5 @@
 export default {
-  async fetch(request, env) {
+  async fetch(request) {
     const url = new URL(request.url);
     const origin = request.headers.get('Origin') || '*';
 
@@ -39,13 +39,37 @@ async function proxyRequest(targetBase, incomingUrl, origin) {
 
   const upstream = await fetch(targetUrl.toString(), {
     method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
   });
 
-  const headers = new Headers(upstream.headers);
-  const cors = corsHeaders(origin);
-  Object.entries(cors).forEach(([key, value]) => headers.set(key, value));
+  const text = await upstream.text();
+  const headers = new Headers(corsHeaders(origin));
+  headers.set('Content-Type', 'application/json; charset=UTF-8');
 
-  return new Response(upstream.body, {
+  if (!upstream.ok) {
+    return new Response(
+      JSON.stringify({
+        error: 'Upstream request failed',
+        status: upstream.status,
+        body: text.slice(0, 200),
+      }),
+      { status: upstream.status, headers }
+    );
+  }
+
+  if (text.trim().startsWith('<')) {
+    return new Response(
+      JSON.stringify({
+        error: 'Non-JSON response from upstream',
+        status: upstream.status,
+      }),
+      { status: 502, headers }
+    );
+  }
+
+  return new Response(text, {
     status: upstream.status,
     headers,
   });
