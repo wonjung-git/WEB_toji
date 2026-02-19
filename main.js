@@ -12,8 +12,8 @@ const posesnSeCodeNmEl = document.getElementById('posesnSeCodeNm');
 const cnrsPsnCoEl = document.getElementById('cnrsPsnCo');
 const detailHint = document.getElementById('detailHint');
 
-const VWORLD_SEARCH_URL = 'https://api.vworld.kr/req/search';
-const VWORLD_LADFRL_URL = 'https://api.vworld.kr/ned/data/ladfrlList';
+const SEARCH_ENDPOINT = '/api/search';
+const LADFRL_ENDPOINT = '/api/ladfrlList';
 
 const formatNumber = (value) => {
   const num = Number(value);
@@ -60,7 +60,7 @@ const fetchPnuFromRoadAddress = async ({ query, key }) => {
     key,
   });
 
-  const response = await fetch(`${VWORLD_SEARCH_URL}?${params}`);
+  const response = await fetch(`${SEARCH_ENDPOINT}?${params}`);
   const data = await response.json();
 
   if (!response.ok || data?.response?.status !== 'OK') {
@@ -90,7 +90,7 @@ const fetchLandInfo = async ({ pnu, key, domain }) => {
     domain,
   });
 
-  const response = await fetch(`${VWORLD_LADFRL_URL}?${params}`);
+  const response = await fetch(`${LADFRL_ENDPOINT}?${params}`);
   const data = await response.json();
 
   if (!response.ok) {
