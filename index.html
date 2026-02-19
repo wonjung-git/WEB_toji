@@ -1,14 +1,92 @@
 <!doctype html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
-  <link href='/style.css' rel='stylesheet'>
+  <title>도로명 주소 → 토지/임야 조회</title>
+  <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <h1>Hello, world!</h1>
-  <button onclick="console.log('hello');">Press me</button>
-  <script defer type="text/javascript" src="/main.js"></script>
+  <main class="page">
+    <section class="hero">
+      <div class="hero__content">
+        <p class="eyebrow">VWorld 기반</p>
+        <h1>도로명 주소로<br />토지·임야 정보 빠르게 조회</h1>
+        <p class="sub">
+          도로명 주소를 입력하면 PNU를 변환하고<br />
+          토지임야목록조회 API로 법정동명, 면적, 소유구분명, 소유인수를 출력합니다.
+        </p>
+      </div>
+      <div class="hero__card">
+        <div class="card__header">
+          <div>
+            <h2>주소 검색</h2>
+            <p>API 키와 도메인을 입력하고 조회하세요.</p>
+          </div>
+          <span class="badge">JSON</span>
+        </div>
+
+        <form id="searchForm" class="form">
+          <label>
+            VWorld API Key
+            <input id="apiKey" type="password" placeholder="발급받은 키" required />
+          </label>
+          <label>
+            Domain (옵션)
+            <input id="domain" type="text" placeholder="API 키 발급 시 등록한 도메인" />
+          </label>
+          <label>
+            도로명 주소
+            <input id="roadAddress" type="text" placeholder="예: 성남시 분당구 판교로 242" required />
+          </label>
+          <button type="submit" id="submitBtn">조회하기</button>
+        </form>
+
+        <div id="status" class="status" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="result">
+      <div class="result__header">
+        <h3>조회 결과</h3>
+        <div class="pill" id="pnuBadge">PNU: -</div>
+      </div>
+      <div class="result__grid">
+        <div class="metric">
+          <span>법정동명</span>
+          <strong id="ldCodeNm">-</strong>
+        </div>
+        <div class="metric">
+          <span>면적(㎡)</span>
+          <strong id="lndpclAr">-</strong>
+        </div>
+        <div class="metric">
+          <span>소유구분명</span>
+          <strong id="posesnSeCodeNm">-</strong>
+        </div>
+        <div class="metric">
+          <span>소유인수(명)</span>
+          <strong id="cnrsPsnCo">-</strong>
+        </div>
+      </div>
+      <div class="hint" id="detailHint">
+        도로명 주소를 입력하면 PNU를 변환해 표시합니다.
+      </div>
+    </section>
+
+    <section class="info">
+      <h3>작동 흐름</h3>
+      <ol>
+        <li>VWorld 주소 검색 API로 도로명 주소를 조회합니다.</li>
+        <li>응답 결과의 <code>id</code> 값을 PNU로 사용합니다.</li>
+        <li>토지임야목록조회 API에서 법정동명, 면적, 소유구분명, 소유인수를 가져옵니다.</li>
+      </ol>
+      <p class="note">
+        브라우저에서 직접 호출 시 CORS 정책으로 차단될 수 있습니다. 이 경우 서버 프록시가 필요합니다.
+      </p>
+    </section>
+  </main>
+
+  <script defer src="/main.js"></script>
 </body>
 </html>
