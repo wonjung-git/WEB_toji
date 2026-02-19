@@ -5,7 +5,7 @@ const DATA_BASE = 'https://api.vworld.kr/req/data';
 const FIXED_ORIGIN = 'https://web-toji.pages.dev';
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const url = new URL(request.url);
 
     if (url.pathname.startsWith('/api/search')) {
@@ -16,7 +16,7 @@ export default {
       return proxyRequest(DATA_BASE, url);
     }
 
-    return new Response('Not found', { status: 404 });
+    return env.ASSETS.fetch(request);
   },
 };
 
