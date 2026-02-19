@@ -1,5 +1,5 @@
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const url = new URL(request.url);
     const origin = request.headers.get('Origin') || '*';
 
@@ -18,7 +18,8 @@ export default {
       return proxyRequest('https://api.vworld.kr/ned/data/ladfrlList', url, origin);
     }
 
-    return new Response('Not Found', { status: 404 });
+    // Serve static assets from Pages for all other routes
+    return env.ASSETS.fetch(request);
   },
 };
 
