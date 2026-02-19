@@ -1,5 +1,5 @@
 const SEARCH_BASE = 'https://api.vworld.kr/req/search';
-const DATA_BASE = 'https://api.vworld.kr/req/data';
+const LADFRL_BASE = 'https://api.vworld.kr/ned/data/ladfrlList';
 
 // 🔒 고정 도메인 (API 등록 도메인과 동일)
 const FIXED_ORIGIN = 'https://web-toji.pages.dev';
@@ -12,8 +12,8 @@ export default {
       return proxyRequest(SEARCH_BASE, url);
     }
 
-    if (url.pathname.startsWith('/api/data')) {
-      return proxyRequest(DATA_BASE, url);
+    if (url.pathname.startsWith('/api/ladfrlList')) {
+      return proxyRequest(LADFRL_BASE, url);
     }
 
     return env.ASSETS.fetch(request);
@@ -32,9 +32,9 @@ async function proxyRequest(targetBase, incomingUrl) {
     const upstream = await fetch(targetUrl.toString(), {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
-        'Referer': FIXED_ORIGIN + '/',
-        'Origin': FIXED_ORIGIN,
+        Accept: 'application/json',
+        Referer: `${FIXED_ORIGIN}/`,
+        Origin: FIXED_ORIGIN,
         'User-Agent': 'Mozilla/5.0',
       },
     });

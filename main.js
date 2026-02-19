@@ -1,44 +1,63 @@
+const form = document.getElementById('searchForm');
+const apiKeyInput = document.getElementById('apiKey');
+const domainInput = document.getElementById('domain');
+const roadInput = document.getElementById('roadAddress');
+const statusEl = document.getElementById('status');
+const submitBtn = document.getElementById('submitBtn');
+
+const pnuBadge = document.getElementById('pnuBadge');
+const ldCodeNmEl = document.getElementById('ldCodeNm');
+const lndpclArEl = document.getElementById('lndpclAr');
+const posesnSeCodeNmEl = document.getElementById('posesnSeCodeNm');
+const cnrsPsnCoEl = document.getElementById('cnrsPsnCo');
+const detailHint = document.getElementById('detailHint');
+
 const SEARCH_ENDPOINT = '/api/search';
-const DATA_ENDPOINT = '/api/data';
+const LADFRL_ENDPOINT = '/api/ladfrlList';
 
-// 🔒 고정값
-const FIXED_API_KEY = '588C7DD7-726F-3C0E-96D3-D04FF29060FB';
-const FIXED_DOMAIN = 'web-toji.pages.dev';
-
-const form = document.getElementById('land-form');
-const resultSection = document.getElementById('result-section');
-const resultContent = document.getElementById('result-content');
-const errorSection = document.getElementById('error-section');
-const errorMessage = document.getElementById('error-message');
-const loader = document.getElementById('loader');
-
-const showLoader = () => loader.classList.remove('hidden');
-const hideLoader = () => loader.classList.add('hidden');
-
-const showError = (message) => {
-  errorMessage.textContent = message;
-  errorSection.classList.remove('hidden');
-  resultSection.classList.add('hidden');
+const formatNumber = (value) => {
+  const num = Number(value);
+  if (Number.isNaN(num)) return value ?? '-';
+  return num.toLocaleString('ko-KR');
 };
 
-const showResult = (html) => {
-  resultContent.innerHTML = html;
-  resultSection.classList.remove('hidden');
-  errorSection.classList.add('hidden');
+const setStatus = (message, isError = false) => {
+  statusEl.textContent = message;
+  statusEl.style.color = isError ? '#c0392b' : '#51657a';
+};
+
+const setResult = ({ pnu, ldCodeNm, lndpclAr, posesnSeCodeNm, cnrsPsnCo }) => {
+  pnuBadge.textContent = `PNU: ${pnu ?? '-'}`;
+  ldCodeNmEl.textContent = ldCodeNm ?? '-';
+  lndpclArEl.textContent = lndpclAr ? `${formatNumber(lndpclAr)} ㎡` : '-';
+  posesnSeCodeNmEl.textContent = posesnSeCodeNm ?? '-';
+  cnrsPsnCoEl.textContent = cnrsPsnCo ? `${formatNumber(cnrsPsnCo)} 명` : '-';
+  detailHint.textContent = pnu
+    ? 'PNU 변환 성공. 토지·임야 정보를 표시했습니다.'
+    : '도로명 주소를 입력하면 PNU를 변환해 표시합니다.';
 };
 
 const buildSearchParams = (params) => {
   const searchParams = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
       searchParams.append(key, value);
     }
   });
   return searchParams.toString();
 };
 
-// 도로명 → PNU 조회
-const fetchPnuFromRoadAddress = async (query) => {
+const parseJsonResponse = async (response) => {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new Error('JSON이 아닌 응답을 받았습니다.');
+  }
+};
+
+const fetchPnuFromRoadAddress = async ({ query, key, domain }) => {
   const params = buildSearchParams({
     service: 'search',
     request: 'search',
@@ -50,81 +69,88 @@ const fetchPnuFromRoadAddress = async (query) => {
     query,
     type: 'address',
     category: 'road',
-    key: FIXED_API_KEY,
-    domain: FIXED_DOMAIN, // 🔒 고정
+    key,
+    domain,
   });
 
   const response = await fetch(`${SEARCH_ENDPOINT}?${params}`);
-  if (!response.ok) {
-    throw new Error(`주소 검색 API 오류 (status: ${response.status})`);
+  const data = await parseJsonResponse(response);
+
+  if (!response.ok || data?.response?.status !== 'OK') {
+    const message = data?.error ?? '주소 검색 API 응답이 올바르지 않습니다.';
+    throw new Error(message);
   }
 
-  const data = await response.json();
-  const items = data?.response?.result?.items;
-
-  if (!items || items.length === 0) {
-    throw new Error('입력한 도로명 주소로 검색 결과를 찾을 수 없습니다.');
+  const items = data.response?.result?.items ?? [];
+  if (!items.length) {
+    throw new Error('검색 결과가 없습니다. 다른 주소로 시도해 주세요.');
   }
 
-  return items[0].id;
+  const pnu = items[0]?.id;
+  if (!pnu) {
+    throw new Error('PNU 값을 찾지 못했습니다.');
+  }
+
+  return pnu;
 };
 
-// 토지 정보 조회
-const fetchLandInfo = async (pnu) => {
+const fetchLandInfo = async ({ pnu, key, domain }) => {
   const params = buildSearchParams({
-    service: 'data',
-    request: 'GetFeature',
-    data: 'LP_PA_CBND_BUBUN',
-    key: FIXED_API_KEY,
-    domain: FIXED_DOMAIN, // 🔒 고정
-    attrFilter: `pnu:like:${pnu}`,
+    key,
+    pnu,
+    format: 'json',
+    numOfRows: 1,
+    pageNo: 1,
+    domain,
   });
 
-  const response = await fetch(`${DATA_ENDPOINT}?${params}`);
+  const response = await fetch(`${LADFRL_ENDPOINT}?${params}`);
+  const data = await parseJsonResponse(response);
+
   if (!response.ok) {
-    throw new Error(`토지 조회 API 오류 (status: ${response.status})`);
+    const message = data?.error ?? '토지임야 API 응답이 올바르지 않습니다.';
+    throw new Error(message);
   }
 
-  return await response.json();
+  const record = data?.ladfrlList?.[0] ?? data?.response?.body?.items?.item ?? data?.items?.[0];
+  if (!record) {
+    throw new Error('토지임야 정보가 없습니다.');
+  }
+
+  return {
+    pnu: record.pnu,
+    ldCodeNm: record.ldCodeNm,
+    lndpclAr: record.lndpclAr,
+    posesnSeCodeNm: record.posesnSeCodeNm,
+    cnrsPsnCo: record.cnrsPsnCo,
+  };
 };
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
 
-  const roadAddress = document.getElementById('roadAddress').value.trim();
+  const apiKey = apiKeyInput.value.trim();
+  const roadAddress = roadInput.value.trim();
+  const domain = domainInput.value.trim();
 
-  if (!roadAddress) {
-    showError('도로명 주소를 입력하세요.');
+  if (!apiKey || !roadAddress) {
+    setStatus('API 키와 도로명 주소를 입력해 주세요.', true);
     return;
   }
 
-  showLoader();
-  errorSection.classList.add('hidden');
-  resultSection.classList.add('hidden');
+  submitBtn.disabled = true;
+  setStatus('주소 검색 중...');
 
   try {
-    const pnu = await fetchPnuFromRoadAddress(roadAddress);
-    const landData = await fetchLandInfo(pnu);
-
-    const features = landData?.response?.result?.featureCollection?.features;
-    if (!features || features.length === 0) {
-      throw new Error('해당 주소에 대한 토지 정보를 찾을 수 없습니다.');
-    }
-
-    const properties = features[0].properties;
-
-    const html = `
-      <p><strong>지번:</strong> ${properties.jibun || '-'}</p>
-      <p><strong>지목:</strong> ${properties.lndcgrCodeNm || '-'}</p>
-      <p><strong>면적:</strong> ${properties.lndpclAr || '-'}㎡</p>
-      <p><strong>공시지가:</strong> ${properties.pblntfPc || '-'}원</p>
-    `;
-
-    showResult(html);
+    const pnu = await fetchPnuFromRoadAddress({ query: roadAddress, key: apiKey, domain });
+    setStatus('PNU 변환 완료. 토지임야 정보를 조회합니다.');
+    const landInfo = await fetchLandInfo({ pnu, key: apiKey, domain });
+    setResult(landInfo);
+    setStatus('조회가 완료되었습니다.');
   } catch (error) {
-    console.error(error);
-    showError(error.message || '알 수 없는 오류가 발생했습니다.');
+    setResult({});
+    setStatus(error.message ?? '조회 중 오류가 발생했습니다.', true);
   } finally {
-    hideLoader();
+    submitBtn.disabled = false;
   }
 });
