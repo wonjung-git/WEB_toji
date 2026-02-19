@@ -1,99 +1,63 @@
+const SEARCH_BASE = 'https://api.vworld.kr/req/search';
+const DATA_BASE = 'https://api.vworld.kr/req/data';
+
+// 🔒 고정 도메인 (API 등록 도메인과 동일)
+const FIXED_ORIGIN = 'https://web-toji.pages.dev';
+
 export default {
-  async fetch(request, env) {
+  async fetch(request) {
     const url = new URL(request.url);
-    const origin = request.headers.get('Origin') || '*';
 
-    if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        status: 204,
-        headers: corsHeaders(origin),
-      });
+    if (url.pathname.startsWith('/api/search')) {
+      return proxyRequest(SEARCH_BASE, url);
     }
 
-    try {
-      if (url.pathname === '/api/search') {
-        return proxyRequest('https://api.vworld.kr/req/search', url, origin);
-      }
-
-      if (url.pathname === '/api/ladfrlList') {
-        return proxyRequest('https://api.vworld.kr/ned/data/ladfrlList', url, origin);
-      }
-
-      // Serve static assets from Pages for all other routes
-      return env.ASSETS.fetch(request);
-    } catch (error) {
-      return jsonError(origin, 502, 'Worker exception', String(error));
+    if (url.pathname.startsWith('/api/data')) {
+      return proxyRequest(DATA_BASE, url);
     }
+
+    return new Response('Not found', { status: 404 });
   },
 };
 
-function corsHeaders(origin) {
-  return {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Max-Age': '86400',
-  };
-}
-
-function jsonError(origin, status, error, detail) {
-  const headers = new Headers(corsHeaders(origin));
-  headers.set('Content-Type', 'application/json; charset=UTF-8');
-  return new Response(
-    JSON.stringify({
-      error,
-      detail,
-      status,
-    }),
-    { status, headers }
-  );
-}
-
-async function proxyRequest(targetBase, incomingUrl, origin) {
+async function proxyRequest(targetBase, incomingUrl) {
   const targetUrl = new URL(targetBase);
+
+  // 쿼리 파라미터 그대로 전달
   incomingUrl.searchParams.forEach((value, key) => {
-    targetUrl.searchParams.append(key, value);
+    targetUrl.searchParams.set(key, value);
   });
 
   try {
     const upstream = await fetch(targetUrl.toString(), {
       method: 'GET',
       headers: {
-        Accept: 'application/json',
+        'Accept': 'application/json',
+        'Referer': FIXED_ORIGIN + '/',
+        'Origin': FIXED_ORIGIN,
         'User-Agent': 'Mozilla/5.0',
       },
     });
 
     const text = await upstream.text();
-    const headers = new Headers(corsHeaders(origin));
-    headers.set('Content-Type', 'application/json; charset=UTF-8');
-
-    if (!upstream.ok) {
-      return new Response(
-        JSON.stringify({
-          error: 'Upstream request failed',
-          status: upstream.status,
-          body: text.slice(0, 200),
-        }),
-        { status: upstream.status, headers }
-      );
-    }
-
-    if (text.trim().startsWith('<')) {
-      return new Response(
-        JSON.stringify({
-          error: 'Non-JSON response from upstream',
-          status: upstream.status,
-        }),
-        { status: 502, headers }
-      );
-    }
 
     return new Response(text, {
       status: upstream.status,
-      headers,
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Max-Age': '86400',
+      },
     });
   } catch (error) {
-    return jsonError(origin, 502, 'Upstream fetch threw', String(error));
+    return new Response(
+      JSON.stringify({
+        error: 'Upstream request failed',
+        detail: error.message,
+      }),
+      { status: 500 }
+    );
   }
 }
