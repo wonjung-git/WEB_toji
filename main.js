@@ -1,3 +1,6 @@
+const DEBUG = true;
+const dlog = (...args) => DEBUG && console.log('[DBG]', ...args);
+
 // 🔒 고정값 (네가 준 값 그대로)
 const FIXED_API_KEY = '588C7DD7-726F-3C0E-96D3-D04FF29060FB';
 const FIXED_DOMAIN_HOST = 'web-toji.pages.dev'; // hostname만
@@ -133,6 +136,9 @@ if (!form) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    dlog('submit fired');
+    dlog('roadInput exists?', !!roadInput, 'value=', roadInput?.value);
+
     const roadAddress = (roadInput?.value || '').trim();
     if (!roadAddress) {
       showError('도로명 주소를 입력하세요.');
@@ -144,8 +150,13 @@ if (!form) {
     if (resultSection) resultSection.classList.add('hidden');
 
     try {
+      dlog('fetchPnuFromRoadAddress start');
       const pnu = await fetchPnuFromRoadAddress(roadAddress);
+      dlog('pnu=', pnu);
+
+      dlog('fetchLandInfo start');
       const info = await fetchLandInfo(pnu);
+      dlog('info=', info);
 
       const html = `
         <p><strong>PNU:</strong> ${pnu}</p>
@@ -156,6 +167,8 @@ if (!form) {
         <p><strong>공유인원:</strong> ${info.cnrsPsnCo ?? '-'}</p>
         <p><strong>최종갱신:</strong> ${info.lastUpdtDt || '-'}</p>
       `;
+
+      dlog('html=', html);
 
       showResult(html);
     } catch (err) {
