@@ -13,11 +13,14 @@ const VWORLD_LADFRL_URL = 'https://api.vworld.kr/ned/data/ladfrlList';
 const form = document.getElementById('land-form') || document.getElementById('searchForm');
 const roadInput = document.getElementById('roadAddress');
 
-const resultSection = document.getElementById('result');
-const resultContent = document.getElementById('result');
-
-const errorSection = document.getElementById('error-section');
-const errorMessage = document.getElementById('error-message');
+const resultSection = document.querySelector('.result');
+const pnuBadge = document.getElementById('pnuBadge');
+const ldCodeNmEl = document.getElementById('ldCodeNm');
+const lndpclArEl = document.getElementById('lndpclAr');
+const posesnSeCodeNmEl = document.getElementById('posesnSeCodeNm');
+const cnrsPsnCoEl = document.getElementById('cnrsPsnCo');
+const detailHint = document.getElementById('detailHint');
+const statusEl = document.getElementById('status');
 
 const loader = document.getElementById('loader');
 
@@ -25,36 +28,24 @@ const showLoader = () => loader && loader.classList.remove('hidden');
 const hideLoader = () => loader && loader.classList.add('hidden');
 
 const showError = (message) => {
-  if (errorMessage) errorMessage.textContent = message;
-  if (errorSection) errorSection.classList.remove('hidden');
-  if (resultSection) resultSection.classList.add('hidden');
+  if (statusEl) statusEl.textContent = message;
+  if (detailHint) detailHint.textContent = '조회 중 오류가 발생했습니다.';
 };
 
-const showResult = (html) => {
-  // 기존 영역이 있으면 거기에 출력
-  if (resultContent) resultContent.innerHTML = html;
-  if (resultSection) resultSection.classList.remove('hidden');
+const showResult = (data) => {
+  const { pnu, info } = data;
 
-  // 없으면 body에 강제 출력 (디버그/안전장치)
-  if (!resultContent) {
-    let box = document.getElementById('__debug_result_box');
-    if (!box) {
-      box = document.createElement('div');
-      box.id = '__debug_result_box';
-      box.style.padding = '12px';
-      box.style.marginTop = '12px';
-      box.style.border = '1px solid #ccc';
-      box.style.borderRadius = '8px';
-      document.body.appendChild(box);
-    }
-    box.innerHTML = html;
-  }
-
-  if (errorSection) errorSection.classList.add('hidden');
+  if (pnuBadge) pnuBadge.textContent = `PNU: ${pnu || '-'}`;
+  if (ldCodeNmEl) ldCodeNmEl.textContent = info.ldCodeNm || '-';
+  if (lndpclArEl) lndpclArEl.textContent = info.lndpclAr ? `${info.lndpclAr}` : '-';
+  if (posesnSeCodeNmEl) posesnSeCodeNmEl.textContent = info.posesnSeCodeNm || '-';
+  if (cnrsPsnCoEl) cnrsPsnCoEl.textContent = info.cnrsPsnCo ?? '-';
+  if (detailHint) detailHint.textContent = '조회 결과가 표시되었습니다.';
+  if (statusEl) statusEl.textContent = '';
 
   dlog('showResult targets:', {
     resultSection: !!resultSection,
-    resultContent: !!resultContent,
+    pnuBadge: !!pnuBadge,
   });
 };
 
@@ -168,8 +159,7 @@ if (!form) {
     }
 
     showLoader();
-    if (errorSection) errorSection.classList.add('hidden');
-    if (resultSection) resultSection.classList.add('hidden');
+    if (statusEl) statusEl.textContent = '';
 
     try {
       dlog('fetchPnuFromRoadAddress start');
@@ -180,19 +170,7 @@ if (!form) {
       const info = await fetchLandInfo(pnu);
       dlog('info=', info);
 
-      const html = `
-        <p><strong>PNU:</strong> ${pnu}</p>
-        <p><strong>법정동:</strong> ${info.ldCodeNm || '-'}</p>
-        <p><strong>지목:</strong> ${info.lndcgrCodeNm || '-'}</p>
-        <p><strong>면적:</strong> ${info.lndpclAr ? `${info.lndpclAr}㎡` : '-'}</p>
-        <p><strong>소유구분:</strong> ${info.posesnSeCodeNm || '-'}</p>
-        <p><strong>공유인원:</strong> ${info.cnrsPsnCo ?? '-'}</p>
-        <p><strong>최종갱신:</strong> ${info.lastUpdtDt || '-'}</p>
-      `;
-
-      dlog('html=', html);
-
-      showResult(html);
+      showResult({ pnu, info });
     } catch (err) {
       console.error(err);
       showError(err?.message || '알 수 없는 오류가 발생했습니다.');
