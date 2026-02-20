@@ -19,6 +19,7 @@ const ldCodeNmEl = document.getElementById('ldCodeNm');
 const lndpclArEl = document.getElementById('lndpclAr');
 const posesnSeCodeNmEl = document.getElementById('posesnSeCodeNm');
 const cnrsPsnCoEl = document.getElementById('cnrsPsnCo');
+const mnnmSlnoEl = document.getElementById('mnnmSlno');
 const detailHint = document.getElementById('detailHint');
 const statusEl = document.getElementById('status');
 
@@ -40,6 +41,7 @@ const showResult = (data) => {
   if (lndpclArEl) lndpclArEl.textContent = info.lndpclAr ? `${info.lndpclAr}` : '-';
   if (posesnSeCodeNmEl) posesnSeCodeNmEl.textContent = info.posesnSeCodeNm || '-';
   if (cnrsPsnCoEl) cnrsPsnCoEl.textContent = info.cnrsPsnCo ?? '-';
+  if (mnnmSlnoEl) mnnmSlnoEl.textContent = info.mnnmSlno || '-';
   if (detailHint) detailHint.textContent = '조회 결과가 표시되었습니다.';
   if (statusEl) statusEl.textContent = '';
 
