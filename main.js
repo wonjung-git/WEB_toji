@@ -31,9 +31,31 @@ const showError = (message) => {
 };
 
 const showResult = (html) => {
+  // 기존 영역이 있으면 거기에 출력
   if (resultContent) resultContent.innerHTML = html;
   if (resultSection) resultSection.classList.remove('hidden');
+
+  // 없으면 body에 강제 출력 (디버그/안전장치)
+  if (!resultContent) {
+    let box = document.getElementById('__debug_result_box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = '__debug_result_box';
+      box.style.padding = '12px';
+      box.style.marginTop = '12px';
+      box.style.border = '1px solid #ccc';
+      box.style.borderRadius = '8px';
+      document.body.appendChild(box);
+    }
+    box.innerHTML = html;
+  }
+
   if (errorSection) errorSection.classList.add('hidden');
+
+  dlog('showResult targets:', {
+    resultSection: !!resultSection,
+    resultContent: !!resultContent,
+  });
 };
 
 // === JSONP 유틸 (CORS 없이 GET 가능) ===
