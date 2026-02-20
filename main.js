@@ -1,9 +1,9 @@
 const DEBUG = true;
 const dlog = (...args) => DEBUG && console.log('[DBG]', ...args);
 
-// 🔒 고정값 (네가 준 값 그대로)
-const FIXED_API_KEY = '588C7DD7-726F-3C0E-96D3-D04FF29060FB';
+// 🔒 고정값: 도메인은 고정 (UI 비노출)
 const FIXED_DOMAIN_HOST = 'web-toji.pages.dev'; // hostname만
+const API_KEY_STORAGE_KEY = 'vworld_api_key';
 
 // VWorld 엔드포인트 (직접 호출)
 const VWORLD_SEARCH_URL = 'https://api.vworld.kr/req/search';
@@ -11,6 +11,7 @@ const VWORLD_LADFRL_URL = 'https://api.vworld.kr/ned/data/ladfrlList';
 
 // === UI 요소들 (네 HTML에 맞춰 ID를 조정해야 할 수도 있음) ===
 const form = document.getElementById('land-form') || document.getElementById('searchForm');
+const apiKeyInput = document.getElementById('apiKey');
 const roadInput = document.getElementById('roadAddress');
 
 const resultSection = document.querySelector('.result');
@@ -90,7 +91,7 @@ function jsonp(url, params = {}, timeoutMs = 10000) {
 }
 
 // 1) 도로명 주소 → PNU
-async function fetchPnuFromRoadAddress(roadAddress) {
+async function fetchPnuFromRoadAddress(roadAddress, apiKey) {
   const data = await jsonp(VWORLD_SEARCH_URL, {
     service: 'search',
     request: 'search',
@@ -102,7 +103,7 @@ async function fetchPnuFromRoadAddress(roadAddress) {
     query: roadAddress,
     type: 'address',
     category: 'road',
-    key: FIXED_API_KEY,
+    key: apiKey,
     domain: FIXED_DOMAIN_HOST,
   });
 
@@ -122,9 +123,9 @@ async function fetchPnuFromRoadAddress(roadAddress) {
 
 // 2) PNU → 토지/임야 정보(예: 지목/면적 등)
 // ※ ladfrlList 응답 필드 구조는 케이스별로 다를 수 있어 널널하게 파싱
-async function fetchLandInfo(pnu) {
+async function fetchLandInfo(pnu, apiKey) {
   const data = await jsonp(VWORLD_LADFRL_URL, {
-    key: FIXED_API_KEY,
+    key: apiKey,
     domain: FIXED_DOMAIN_HOST,
     pnu,
     format: 'json',
@@ -148,28 +149,42 @@ async function fetchLandInfo(pnu) {
 if (!form) {
   console.error('폼 ID를 찾지 못했습니다. land-form 또는 searchForm 확인 필요');
 } else {
+  // 저장된 키를 자동 채움
+  if (apiKeyInput) {
+    const savedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+    if (savedKey) apiKeyInput.value = savedKey;
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     dlog('submit fired');
     dlog('roadInput exists?', !!roadInput, 'value=', roadInput?.value);
 
+    const apiKey = (apiKeyInput?.value || '').trim();
     const roadAddress = (roadInput?.value || '').trim();
+
+    if (!apiKey) {
+      showError('VWorld API Key를 입력하세요.');
+      return;
+    }
     if (!roadAddress) {
       showError('도로명 주소를 입력하세요.');
       return;
     }
+
+    localStorage.setItem(API_KEY_STORAGE_KEY, apiKey);
 
     showLoader();
     if (statusEl) statusEl.textContent = '';
 
     try {
       dlog('fetchPnuFromRoadAddress start');
-      const pnu = await fetchPnuFromRoadAddress(roadAddress);
+      const pnu = await fetchPnuFromRoadAddress(roadAddress, apiKey);
       dlog('pnu=', pnu);
 
       dlog('fetchLandInfo start');
-      const info = await fetchLandInfo(pnu);
+      const info = await fetchLandInfo(pnu, apiKey);
       dlog('info=', info);
 
       showResult({ pnu, info });
