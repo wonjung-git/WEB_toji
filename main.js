@@ -189,6 +189,7 @@ async function fetchLandPriceInfo(pnu, apiKey) {
     });
 
     const item =
+      data?.statelndvdLandPrices?.field?.[0] ||
       data?.indvdLandPriceList?.indvdLandPriceList?.[0] ||
       data?.indvdLandPriceList?.[0] ||
       data?.response?.body?.items?.item?.[0] ||
