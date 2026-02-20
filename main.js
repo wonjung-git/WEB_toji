@@ -164,31 +164,41 @@ async function fetchLandInfo(pnu, apiKey) {
 
 // 3) PNU → 공시지가/용도지역
 async function fetchLandPriceInfo(pnu, apiKey) {
-  const stdrYear = new Date().getFullYear();
   const ldCode = (pnu || '').slice(0, 10);
   if (ldCode.length < 2) throw new Error('법정동코드를 만들 수 없습니다.');
 
-  const data = await jsonp(VWORLD_INDVD_PRICE_URL, {
-    key: apiKey,
-    domain: FIXED_DOMAIN_HOST,
-    stdrYear,
-    reqLvl: 3,
-    ldCode,
-    format: 'json',
-    numOfRows: 1,
-    pageNo: 1,
-  });
+  const currentYear = new Date().getFullYear();
+  const yearCandidates = [
+    currentYear,
+    currentYear - 1,
+    currentYear - 2,
+    currentYear - 3,
+    currentYear - 4,
+  ];
 
-  const item =
-    data?.indvdLandPriceList?.indvdLandPriceList?.[0] ||
-    data?.indvdLandPriceList?.[0] ||
-    data?.response?.body?.items?.item?.[0] ||
-    data?.response?.body?.items?.item ||
-    data?.items?.[0];
+  for (const stdrYear of yearCandidates) {
+    const data = await jsonp(VWORLD_INDVD_PRICE_URL, {
+      key: apiKey,
+      domain: FIXED_DOMAIN_HOST,
+      stdrYear,
+      reqLvl: 3,
+      ldCode,
+      format: 'json',
+      numOfRows: 1,
+      pageNo: 1,
+    });
 
-  if (!item) throw new Error('공시지가 정보를 찾지 못했습니다.');
+    const item =
+      data?.indvdLandPriceList?.indvdLandPriceList?.[0] ||
+      data?.indvdLandPriceList?.[0] ||
+      data?.response?.body?.items?.item?.[0] ||
+      data?.response?.body?.items?.item ||
+      data?.items?.[0];
 
-  return item;
+    if (item) return item;
+  }
+
+  throw new Error('공시지가 정보를 찾지 못했습니다.');
 }
 
 // === submit ===
