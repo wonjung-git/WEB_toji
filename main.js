@@ -114,8 +114,9 @@ async function fetchLandInfo(pnu) {
     pageNo: 1,
   });
 
-  // 케이스별 파싱
+  // ✅ VWorld ladfrlList 실제 응답 구조 대응
   const item =
+    data?.ladfrlVOList?.ladfrlVOList?.[0] || // <- 너가 받은 실제 구조
     data?.ladfrlList?.[0] ||
     data?.response?.body?.items?.item ||
     data?.items?.[0];
@@ -126,36 +127,42 @@ async function fetchLandInfo(pnu) {
 }
 
 // === submit ===
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
+if (!form) {
+  console.error('폼 ID를 찾지 못했습니다. land-form 또는 searchForm 확인 필요');
+} else {
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-  const roadAddress = (roadInput?.value || '').trim();
-  if (!roadAddress) {
-    showError('도로명 주소를 입력하세요.');
-    return;
-  }
+    const roadAddress = (roadInput?.value || '').trim();
+    if (!roadAddress) {
+      showError('도로명 주소를 입력하세요.');
+      return;
+    }
 
-  showLoader();
-  if (errorSection) errorSection.classList.add('hidden');
-  if (resultSection) resultSection.classList.add('hidden');
+    showLoader();
+    if (errorSection) errorSection.classList.add('hidden');
+    if (resultSection) resultSection.classList.add('hidden');
 
-  try {
-    const pnu = await fetchPnuFromRoadAddress(roadAddress);
-    const info = await fetchLandInfo(pnu);
+    try {
+      const pnu = await fetchPnuFromRoadAddress(roadAddress);
+      const info = await fetchLandInfo(pnu);
 
-    const html = `
-      <p><strong>PNU:</strong> ${pnu}</p>
-      <p><strong>지번:</strong> ${info.jibun || '-'}</p>
-      <p><strong>지목:</strong> ${info.ldCodeNm || info.lndcgrCodeNm || '-'}</p>
-      <p><strong>면적:</strong> ${info.lndpclAr ? `${info.lndpclAr}㎡` : '-'}</p>
-      <p><strong>공시지가:</strong> ${info.pblntfPc ? `${info.pblntfPc}원` : '-'}</p>
-    `;
+      const html = `
+        <p><strong>PNU:</strong> ${pnu}</p>
+        <p><strong>법정동:</strong> ${info.ldCodeNm || '-'}</p>
+        <p><strong>지목:</strong> ${info.lndcgrCodeNm || '-'}</p>
+        <p><strong>면적:</strong> ${info.lndpclAr ? `${info.lndpclAr}㎡` : '-'}</p>
+        <p><strong>소유구분:</strong> ${info.posesnSeCodeNm || '-'}</p>
+        <p><strong>공유인원:</strong> ${info.cnrsPsnCo ?? '-'}</p>
+        <p><strong>최종갱신:</strong> ${info.lastUpdtDt || '-'}</p>
+      `;
 
-    showResult(html);
-  } catch (err) {
-    console.error(err);
-    showError(err?.message || '알 수 없는 오류가 발생했습니다.');
-  } finally {
-    hideLoader();
-  }
-});
+      showResult(html);
+    } catch (err) {
+      console.error(err);
+      showError(err?.message || '알 수 없는 오류가 발생했습니다.');
+    } finally {
+      hideLoader();
+    }
+  });
+}
