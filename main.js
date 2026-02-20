@@ -13,8 +13,8 @@ const VWORLD_LADFRL_URL = 'https://api.vworld.kr/ned/data/ladfrlList';
 const form = document.getElementById('land-form') || document.getElementById('searchForm');
 const roadInput = document.getElementById('roadAddress');
 
-const resultSection = document.getElementById('result-section');
-const resultContent = document.getElementById('result-content');
+const resultSection = document.getElementById('result');
+const resultContent = document.getElementById('result');
 
 const errorSection = document.getElementById('error-section');
 const errorMessage = document.getElementById('error-message');
