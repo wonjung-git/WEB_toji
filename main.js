@@ -1,6 +1,4 @@
 const form = document.getElementById('searchForm');
-const apiKeyInput = document.getElementById('apiKey');
-const domainInput = document.getElementById('domain');
 const roadInput = document.getElementById('roadAddress');
 const statusEl = document.getElementById('status');
 const submitBtn = document.getElementById('submitBtn');
@@ -14,6 +12,10 @@ const detailHint = document.getElementById('detailHint');
 
 const SEARCH_ENDPOINT = '/api/search';
 const LADFRL_ENDPOINT = '/api/ladfrlList';
+
+// 🔒 고정값 (네가 준 값 그대로)
+const FIXED_API_KEY = '588C7DD7-726F-3C0E-96D3-D04FF29060FB';
+const FIXED_DOMAIN_HOST = 'web-toji.pages.dev'; // ⚠️ hostname만!
 
 const formatNumber = (value) => {
   const num = Number(value);
@@ -52,24 +54,12 @@ const parseJsonResponse = async (response) => {
   if (!text) return {};
   try {
     return JSON.parse(text);
-  } catch (error) {
+  } catch {
     throw new Error('JSON이 아닌 응답을 받았습니다.');
   }
 };
 
-const normalizeDomain = (value) => {
-  if (!value) return '';
-  const trimmed = value.trim();
-  if (!trimmed) return '';
-  try {
-    const url = new URL(trimmed);
-    return url.hostname;
-  } catch {
-    return trimmed.replace(/\/+$/, '');
-  }
-};
-
-const fetchPnuFromRoadAddress = async ({ query, key, domain }) => {
+const fetchPnuFromRoadAddress = async (query) => {
   const params = buildSearchParams({
     service: 'search',
     request: 'search',
@@ -81,53 +71,47 @@ const fetchPnuFromRoadAddress = async ({ query, key, domain }) => {
     query,
     type: 'address',
     category: 'road',
-    key,
-    domain,
+    key: FIXED_API_KEY,
+    domain: FIXED_DOMAIN_HOST, // ✅ hostname만
   });
 
   const response = await fetch(`${SEARCH_ENDPOINT}?${params}`);
   const data = await parseJsonResponse(response);
 
   if (!response.ok || data?.response?.status !== 'OK') {
-    const message = data?.error ?? '주소 검색 API 응답이 올바르지 않습니다.';
+    const message = data?.error ?? `주소 검색 API 오류 (status: ${response.status})`;
     throw new Error(message);
   }
 
   const items = data.response?.result?.items ?? [];
-  if (!items.length) {
-    throw new Error('검색 결과가 없습니다. 다른 주소로 시도해 주세요.');
-  }
+  if (!items.length) throw new Error('검색 결과가 없습니다. 다른 주소로 시도해 주세요.');
 
   const pnu = items[0]?.id;
-  if (!pnu) {
-    throw new Error('PNU 값을 찾지 못했습니다.');
-  }
+  if (!pnu) throw new Error('PNU 값을 찾지 못했습니다.');
 
   return pnu;
 };
 
-const fetchLandInfo = async ({ pnu, key, domain }) => {
+const fetchLandInfo = async (pnu) => {
   const params = buildSearchParams({
-    key,
+    key: FIXED_API_KEY,
     pnu,
     format: 'json',
     numOfRows: 1,
     pageNo: 1,
-    domain,
+    domain: FIXED_DOMAIN_HOST, // ✅ hostname만
   });
 
   const response = await fetch(`${LADFRL_ENDPOINT}?${params}`);
   const data = await parseJsonResponse(response);
 
   if (!response.ok) {
-    const message = data?.error ?? '토지임야 API 응답이 올바르지 않습니다.';
+    const message = data?.error ?? `토지임야 API 오류 (status: ${response.status})`;
     throw new Error(message);
   }
 
   const record = data?.ladfrlList?.[0] ?? data?.response?.body?.items?.item ?? data?.items?.[0];
-  if (!record) {
-    throw new Error('토지임야 정보가 없습니다.');
-  }
+  if (!record) throw new Error('토지임야 정보가 없습니다.');
 
   return {
     pnu: record.pnu,
@@ -141,12 +125,9 @@ const fetchLandInfo = async ({ pnu, key, domain }) => {
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
 
-  const apiKey = apiKeyInput.value.trim();
   const roadAddress = roadInput.value.trim();
-  const domain = normalizeDomain(domainInput.value) || window.location.hostname;
-
-  if (!apiKey || !roadAddress) {
-    setStatus('API 키와 도로명 주소를 입력해 주세요.', true);
+  if (!roadAddress) {
+    setStatus('도로명 주소를 입력해 주세요.', true);
     return;
   }
 
@@ -154,9 +135,9 @@ form.addEventListener('submit', async (event) => {
   setStatus('주소 검색 중...');
 
   try {
-    const pnu = await fetchPnuFromRoadAddress({ query: roadAddress, key: apiKey, domain });
+    const pnu = await fetchPnuFromRoadAddress(roadAddress);
     setStatus('PNU 변환 완료. 토지임야 정보를 조회합니다.');
-    const landInfo = await fetchLandInfo({ pnu, key: apiKey, domain });
+    const landInfo = await fetchLandInfo(pnu);
     setResult(landInfo);
     setStatus('조회가 완료되었습니다.');
   } catch (error) {
