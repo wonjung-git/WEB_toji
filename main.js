@@ -8,6 +8,7 @@ const API_KEY_STORAGE_KEY = 'vworld_api_key';
 // VWorld 엔드포인트 (직접 호출)
 const VWORLD_SEARCH_URL = 'https://api.vworld.kr/req/search';
 const VWORLD_LADFRL_URL = 'https://api.vworld.kr/ned/data/ladfrlList';
+const VWORLD_INDVD_PRICE_URL = 'https://api.vworld.kr/ned/data/getIndvdLandPrice';
 
 // === UI 요소들 (네 HTML에 맞춰 ID를 조정해야 할 수도 있음) ===
 const form = document.getElementById('land-form') || document.getElementById('searchForm');
@@ -17,7 +18,9 @@ const roadInput = document.getElementById('roadAddress');
 const resultSection = document.querySelector('.result');
 const pnuBadge = document.getElementById('pnuBadge');
 const ldCodeNmEl = document.getElementById('ldCodeNm');
+const prposAreaDisplayEl = document.getElementById('prposAreaDisplay');
 const lndpclArEl = document.getElementById('lndpclAr');
+const ladPblntfPclndEl = document.getElementById('ladPblntfPclnd');
 const posesnSeCodeNmEl = document.getElementById('posesnSeCodeNm');
 const cnrsPsnCoEl = document.getElementById('cnrsPsnCo');
 const mnnmSlnoEl = document.getElementById('mnnmSlno');
@@ -35,11 +38,25 @@ const showError = (message) => {
 };
 
 const showResult = (data) => {
-  const { pnu, info } = data;
+  const { pnu, info, priceInfo } = data;
+  const areaName = priceInfo?.prposAreaNm || '-';
+  const dstrcName = priceInfo?.prposDstrcNm || '';
+  const areaDisplay =
+    areaName !== '-' ? `${areaName}${dstrcName ? ` (${dstrcName})` : ''}` : '-';
+
+  let priceDisplay = '-';
+  if (priceInfo?.ladPblntfPclnd != null && priceInfo?.ladPblntfPclnd !== '') {
+    const priceNum = Number(priceInfo.ladPblntfPclnd);
+    priceDisplay = Number.isFinite(priceNum)
+      ? priceNum.toLocaleString('ko-KR')
+      : `${priceInfo.ladPblntfPclnd}`;
+  }
 
   if (pnuBadge) pnuBadge.textContent = `PNU: ${pnu || '-'}`;
   if (ldCodeNmEl) ldCodeNmEl.textContent = info.ldCodeNm || '-';
+  if (prposAreaDisplayEl) prposAreaDisplayEl.textContent = areaDisplay;
   if (lndpclArEl) lndpclArEl.textContent = info.lndpclAr ? `${info.lndpclAr}` : '-';
+  if (ladPblntfPclndEl) ladPblntfPclndEl.textContent = priceDisplay;
   if (posesnSeCodeNmEl) posesnSeCodeNmEl.textContent = info.posesnSeCodeNm || '-';
   if (cnrsPsnCoEl) cnrsPsnCoEl.textContent = info.cnrsPsnCo ?? '-';
   if (mnnmSlnoEl) mnnmSlnoEl.textContent = info.mnnmSlno || '-';
@@ -145,6 +162,35 @@ async function fetchLandInfo(pnu, apiKey) {
   return item;
 }
 
+// 3) PNU → 공시지가/용도지역
+async function fetchLandPriceInfo(pnu, apiKey) {
+  const stdrYear = new Date().getFullYear();
+  const ldCode = (pnu || '').slice(0, 10);
+  if (ldCode.length < 2) throw new Error('법정동코드를 만들 수 없습니다.');
+
+  const data = await jsonp(VWORLD_INDVD_PRICE_URL, {
+    key: apiKey,
+    domain: FIXED_DOMAIN_HOST,
+    stdrYear,
+    reqLvl: 3,
+    ldCode,
+    format: 'json',
+    numOfRows: 1,
+    pageNo: 1,
+  });
+
+  const item =
+    data?.indvdLandPriceList?.indvdLandPriceList?.[0] ||
+    data?.indvdLandPriceList?.[0] ||
+    data?.response?.body?.items?.item?.[0] ||
+    data?.response?.body?.items?.item ||
+    data?.items?.[0];
+
+  if (!item) throw new Error('공시지가 정보를 찾지 못했습니다.');
+
+  return item;
+}
+
 // === submit ===
 if (!form) {
   console.error('폼 ID를 찾지 못했습니다. land-form 또는 searchForm 확인 필요');
@@ -187,7 +233,16 @@ if (!form) {
       const info = await fetchLandInfo(pnu, apiKey);
       dlog('info=', info);
 
-      showResult({ pnu, info });
+      let priceInfo = null;
+      try {
+        dlog('fetchLandPriceInfo start');
+        priceInfo = await fetchLandPriceInfo(pnu, apiKey);
+        dlog('priceInfo=', priceInfo);
+      } catch (err) {
+        console.error(err);
+      }
+
+      showResult({ pnu, info, priceInfo });
     } catch (err) {
       console.error(err);
       showError(err?.message || '알 수 없는 오류가 발생했습니다.');
